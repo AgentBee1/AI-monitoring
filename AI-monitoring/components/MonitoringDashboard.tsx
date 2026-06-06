@@ -71,22 +71,22 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
   ]
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-stone-50">
       {/* Header */}
-      <header className="border-b border-stone-800/60 sticky top-0 z-10 backdrop-blur-md bg-[#0F0E0A]/80">
+      <header className="border-b border-stone-200 sticky top-0 z-10 bg-white/80 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-brand-yellow flex items-center justify-center text-base">
               🐝
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-stone-100 leading-none">AI Monitoring</h1>
-              <p className="text-xs text-stone-500 font-mono mt-0.5">Red cohort · Fortnightly</p>
+              <h1 className="text-sm font-semibold text-stone-900 leading-none">AI Monitoring</h1>
+              <p className="text-xs text-stone-400 font-mono mt-0.5">Red cohort · Fortnightly</p>
             </div>
           </div>
           <button
             onClick={() => setShowTriggerPanel(!showTriggerPanel)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-900 border border-stone-800 hover:border-stone-700 text-stone-300 hover:text-stone-100 text-xs font-medium transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-100 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 text-xs font-medium transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" />
@@ -99,8 +99,8 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
       <main className="max-w-4xl mx-auto px-6 py-8">
         {/* Trigger panel */}
         {showTriggerPanel && (
-          <div className="mb-8 rounded-xl border border-stone-800 bg-stone-900/50 p-5">
-            <h2 className="text-sm font-semibold text-stone-200 mb-1">Manual Scan</h2>
+          <div className="mb-8 rounded-xl border border-stone-200 bg-white shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-stone-800 mb-1">Manual Scan</h2>
             <p className="text-xs text-stone-500 mb-4">
               Runs a scan of the first 3 red agents. Use dry run to test without writing to the database.
             </p>
@@ -108,7 +108,7 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
               <button
                 onClick={() => runScan(true)}
                 disabled={triggerLoading}
-                className="px-4 py-2 rounded-lg text-xs font-medium border border-stone-700 text-stone-300 hover:bg-stone-800 transition-all disabled:opacity-40"
+                className="px-4 py-2 rounded-lg text-xs font-medium border border-stone-300 text-stone-600 hover:bg-stone-50 transition-all disabled:opacity-40"
               >
                 {triggerLoading ? 'Running…' : 'Dry run'}
               </button>
@@ -121,7 +121,7 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
               </button>
             </div>
             {triggerResult && (
-              <pre className="mt-4 text-xs font-mono text-stone-400 bg-stone-950 rounded-lg p-4 overflow-auto max-h-48 border border-stone-800">
+              <pre className="mt-4 text-xs font-mono text-stone-600 bg-stone-50 rounded-lg p-4 overflow-auto max-h-48 border border-stone-200">
                 {JSON.stringify(triggerResult, null, 2)}
               </pre>
             )}
@@ -131,19 +131,19 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: 'Total', value: initialCandidates.length, color: 'text-stone-100' },
-            { label: 'Awaiting review', value: newCount, color: 'text-red-400' },
-            { label: 'In progress', value: inProgressCount, color: 'text-amber-400' },
+            { label: 'Total', value: initialCandidates.length, color: 'text-stone-900' },
+            { label: 'Awaiting review', value: newCount, color: 'text-red-500' },
+            { label: 'In progress', value: inProgressCount, color: 'text-amber-500' },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl bg-stone-900/60 border border-stone-800/60 px-5 py-4">
+            <div key={stat.label} className="rounded-xl bg-white border border-stone-200 shadow-sm px-5 py-4">
               <p className={`text-2xl font-bold ${stat.color} leading-none mb-1`}>{stat.value}</p>
-              <p className="text-xs text-stone-500 font-mono">{stat.label}</p>
+              <p className="text-xs text-stone-400 font-mono">{stat.label}</p>
             </div>
           ))}
         </div>
 
         {/* Filter tabs */}
-        <div className="flex items-center gap-1 mb-6 border-b border-stone-800/60 pb-0">
+        <div className="flex items-center gap-1 mb-6 border-b border-stone-200 pb-0">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -151,8 +151,8 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
               className={`
                 flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px
                 ${filter === tab.id
-                  ? 'border-brand-yellow text-stone-100'
-                  : 'border-transparent text-stone-500 hover:text-stone-300'
+                  ? 'border-brand-amber text-stone-900'
+                  : 'border-transparent text-stone-400 hover:text-stone-600'
                 }
               `}
             >
@@ -160,7 +160,7 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
               {tab.count !== undefined && tab.count > 0 && (
                 <span className={`
                   text-xs font-mono px-1.5 py-0.5 rounded-full
-                  ${filter === tab.id ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-stone-800 text-stone-500'}
+                  ${filter === tab.id ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-400'}
                 `}>
                   {tab.count}
                 </span>
@@ -179,11 +179,9 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
           </div>
         ) : (
           <div className="space-y-4">
-            {/* In progress first */}
             {filter !== 'new' && filtered.filter(c => c.status === 'in_progress').map(c => (
               <CandidateCard key={c.id} candidate={c} onUpdate={refresh} />
             ))}
-            {/* Then new */}
             {filter !== 'in_progress' && filtered.filter(c => c.status === 'new').map(c => (
               <CandidateCard key={c.id} candidate={c} onUpdate={refresh} />
             ))}
