@@ -13,21 +13,5 @@
 
 ::selection {
   background: #F5C842;
-  color: #0F0E0A;
-}
-
-/* Subtle scanline texture on body */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(255, 255, 255, 0.012) 2px,
-    rgba(255, 255, 255, 0.012) 4px
-  );
-  pointer-events: none;
-  z-index: 9999;
+  color: #1c1700;
 }
