@@ -1,5 +1,3 @@
-import { redirect } from 'next/navigation'
-import { isAuthenticated } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import MonitoringDashboard from '@/components/MonitoringDashboard'
 
@@ -29,8 +27,6 @@ async function getCandidates() {
 }
 
 export default async function HomePage() {
-  if (!isAuthenticated()) redirect('/login')
-
   const candidates = await getCandidates()
 
   const newCount = candidates.filter(c => c.status === 'new').length
