@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import MonitoringDashboard from '@/components/MonitoringDashboard'
 
+// Always read live data (otherwise Next can serve a build-time snapshot of the queue).
+export const dynamic = 'force-dynamic'
+
 async function getCandidates() {
   const { data, error } = await supabase
     .from('ai_incident_monitoring')

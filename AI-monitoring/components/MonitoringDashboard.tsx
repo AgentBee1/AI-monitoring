@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import CandidateCard from './CandidateCard'
+import AppHeader from './AppHeader'
 
 interface Agent {
   id: string
@@ -72,18 +73,7 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
 
   return (
     <div className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header className="border-b border-stone-200 sticky top-0 z-10 bg-white/80 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-yellow flex items-center justify-center text-base">
-              🐝
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold text-stone-900 leading-none">AI Monitoring</h1>
-              <p className="text-xs text-stone-400 font-mono mt-0.5">Red cohort · Fortnightly</p>
-            </div>
-          </div>
+      <AppHeader active="findings" subtitle="Per-agent scan · Monthly">
           <button
             onClick={() => setShowTriggerPanel(!showTriggerPanel)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-100 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-900 text-xs font-medium transition-all"
@@ -93,10 +83,9 @@ export default function MonitoringDashboard({ initialCandidates, newCount, inPro
             </svg>
             Run scan
           </button>
-        </div>
-      </header>
+      </AppHeader>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {/* Trigger panel */}
         {showTriggerPanel && (
           <div className="mb-8 rounded-xl border border-stone-200 bg-white shadow-sm p-5">
