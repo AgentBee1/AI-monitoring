@@ -23,12 +23,15 @@ export interface Lead {
   created_at: string
   agent: MatchedAgent | null
   clients: string[] // client institutions that authorise the matched agent (or any of its variants)
+  radarClients: string[] // client institutions with the agent on Risk Radar (linked, not authorised)
 }
 
-// Client institutions per canonical agent id. Agents can have variant rows pointing at a
-// canonical record, and client links live in BOTH link tables, so we check all of them.
-async function getClientsByAgent(canonicalIds: string[]): Promise<Map<string, string[]>> {
-  const out = new Map<string, Set<string>>()
+// Client institutions per canonical agent id, split into authorised and Risk Radar.
+// Agents can have variant rows pointing at a canonical record, so all variants are checked.
+// Single source of truth: institution_agent_links (link_type 'authorised' | 'linked').
+type ClientSplit = { authorised: string[]; radar: string[] }
+
+async function getClientsByAgent(canonicalIds: string[]): Promise<Map<string, ClientSplit>> {
   if (canonicalIds.length === 0) return new Map()
 
   const idList = canonicalIds.join(',')
@@ -43,36 +46,31 @@ async function getClientsByAgent(canonicalIds: string[]): Promise<Map<string, st
   const variantIds = Array.from(toCanonical.keys())
   if (variantIds.length === 0) return new Map()
 
-  const [a, b] = await Promise.all([
-    supabase
-      .from('agent_institution_links')
-      .select('agent_id, is_active, institutions!inner(name, is_client, status)')
-      .in('agent_id', variantIds),
-    supabase
-      .from('institution_agent_links')
-      .select('agent_id, institutions!inner(name, is_client, status)')
-      .in('agent_id', variantIds),
-  ])
-  if (a.error) throw a.error
-  if (b.error) throw b.error
+  const { data, error } = await supabase
+    .from('institution_agent_links')
+    .select('agent_id, link_type, institutions!inner(name, status)')
+    .in('agent_id', variantIds)
+  if (error) throw error
 
-  const rows = [
-    ...(a.data ?? []).filter((r: any) => r.is_active !== false),
-    ...(b.data ?? []),
-  ] as any[]
-
-  for (const r of rows) {
+  const auth = new Map<string, Set<string>>()
+  const radar = new Map<string, Set<string>>()
+  for (const r of (data ?? []) as any[]) {
     const inst = Array.isArray(r.institutions) ? r.institutions[0] : r.institutions
-    if (!inst) continue
-    const isClient = inst.is_client === true || inst.status === 'Client'
-    if (!isClient) continue
+    if (!inst || inst.status !== 'Client') continue
     const canonical = toCanonical.get(r.agent_id)
     if (!canonical) continue
-    if (!out.has(canonical)) out.set(canonical, new Set())
-    out.get(canonical)!.add(inst.name)
+    const bucket = r.link_type === 'authorised' ? auth : radar
+    if (!bucket.has(canonical)) bucket.set(canonical, new Set())
+    bucket.get(canonical)!.add(inst.name)
   }
 
-  return new Map(Array.from(out, ([k, v]) => [k, Array.from(v).sort()] as [string, string[]]))
+  const out = new Map<string, ClientSplit>()
+  for (const id of Array.from(new Set(Array.from(auth.keys()).concat(Array.from(radar.keys()))))) {
+    const a = auth.get(id) ?? new Set<string>()
+    const r = Array.from(radar.get(id) ?? []).filter(n => !a.has(n)) // authorised wins
+    out.set(id, { authorised: Array.from(a).sort(), radar: r.sort() })
+  }
+  return out
 }
 
 export async function getLeads(): Promise<Lead[]> {
@@ -93,12 +91,14 @@ export async function getLeads(): Promise<Lead[]> {
     ...r,
     agent: Array.isArray(r.agent) ? r.agent[0] ?? null : r.agent ?? null,
     clients: [] as string[],
+    radarClients: [] as string[],
   })) as Lead[]
 
   const agentIds = Array.from(new Set(leads.map(l => l.agent?.id).filter(Boolean) as string[]))
   const clientsByAgent = await getClientsByAgent(agentIds)
   for (const l of leads) {
-    if (l.agent) l.clients = clientsByAgent.get(l.agent.id) ?? []
+    const split = l.agent ? clientsByAgent.get(l.agent.id) : undefined
+    if (split) { l.clients = split.authorised; l.radarClients = split.radar }
   }
 
   return leads

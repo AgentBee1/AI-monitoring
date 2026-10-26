@@ -45,10 +45,12 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
 }
 
-// Leads that touch a client's authorised agent are the most important, then matched agents,
+// Leads that touch a client's agent (authorised or Risk Radar) are the most important, then matched agents,
 // then by category (misconduct first), then newest.
+const touches = (l: Lead) => l.clients.length > 0 || l.radarClients.length > 0
+
 function sortLeads(a: Lead, b: Lead) {
-  const rank = (l: Lead) => (l.clients.length > 0 ? 0 : l.agent ? 1 : 2)
+  const rank = (l: Lead) => (touches(l) ? 0 : l.agent ? 1 : 2)
   return rank(a) - rank(b)
     || CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]
     || b.created_at.localeCompare(a.created_at)
@@ -96,7 +98,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
       .sort(sortLeads)
   }, [inStatus, category, matchedOnly, query])
 
-  const clientHits = inStatus.filter(l => l.clients.length > 0).length
+  const clientHits = inStatus.filter(touches).length
   const matched = inStatus.filter(l => !!l.agent).length
 
   function showToast(t: Toast) {
@@ -141,7 +143,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
     : [{ cat: CATEGORY_BY_ID[category as LeadCategory], items: visible }]
 
   // When grouping, keep client-linked leads in a pinned section on top so they're never missed.
-  const pinned = showGroups ? visible.filter(l => l.clients.length > 0) : []
+  const pinned = showGroups ? visible.filter(touches) : []
   const pinnedIds = new Set(pinned.map(l => l.id))
 
   return (
@@ -312,7 +314,7 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
   const cat = CATEGORY_BY_ID[lead.category]
   const name = lead.candidate_agent_name_raw
   const where = lead.jurisdiction ? (JURISDICTIONS[lead.jurisdiction] ?? lead.jurisdiction) : 'Global'
-  const touchesClients = lead.clients.length > 0
+  const touchesClients = touches(lead)
 
   return (
     <article className={`rounded-xl border bg-white shadow-sm transition-all hover:shadow-md ${
@@ -359,8 +361,18 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
 
         {touchesClients && (
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 mb-3 text-xs text-amber-900">
-            <span className="font-semibold">Authorised by {lead.clients.length} client{lead.clients.length > 1 ? 's' : ''}:</span>{' '}
-            {lead.clients.join(', ')}
+            {lead.clients.length > 0 && (
+              <div>
+                <span className="font-semibold">Authorised by {lead.clients.length} client{lead.clients.length > 1 ? 's' : ''}:</span>{' '}
+                {lead.clients.join(', ')}
+              </div>
+            )}
+            {lead.radarClients.length > 0 && (
+              <div className={lead.clients.length > 0 ? 'mt-1' : ''}>
+                <span className="font-semibold">On Risk Radar of {lead.radarClients.length} client{lead.radarClients.length > 1 ? 's' : ''}:</span>{' '}
+                {lead.radarClients.join(', ')}
+              </div>
+            )}
           </div>
         )}
 
