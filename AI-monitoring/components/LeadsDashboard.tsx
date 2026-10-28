@@ -45,6 +45,19 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
 }
 
+// Agency website: our database first, then what the scan found. Stored values may lack a scheme.
+function agencySite(lead: Lead): string | null {
+  const raw = (lead.agent?.website || lead.agency_website || '').trim()
+  if (!raw) return null
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+}
+
+// Name to search the web for: the Latin-script part of e.g. "中佑教育 (Zhongyou Education)".
+function searchName(name: string) {
+  const latin = name.match(/\(([^()]*[A-Za-z][^()]*)\)/)
+  return /[A-Za-z]/.test(name.replace(/\([^()]*\)/g, '')) ? name : (latin?.[1] ?? name)
+}
+
 // Leads that touch a client's agent (authorised or Risk Radar) are the most important, then matched agents,
 // then by category (misconduct first), then newest.
 const touches = (l: Lead) => l.clients.length > 0 || l.radarClients.length > 0
@@ -94,7 +107,8 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
         || l.summary.toLowerCase().includes(q)
         || (l.candidate_agent_name_raw ?? '').toLowerCase().includes(q)
         || (l.agent?.agency_name ?? '').toLowerCase().includes(q)
-        || domainOf(l.source_url).includes(q))
+        || domainOf(l.source_url).includes(q)
+        || (agencySite(l) ?? '').toLowerCase().includes(q))
       .sort(sortLeads)
   }, [inStatus, category, matchedOnly, query])
 
@@ -315,6 +329,7 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
   const name = lead.candidate_agent_name_raw
   const where = lead.jurisdiction ? (JURISDICTIONS[lead.jurisdiction] ?? lead.jurisdiction) : 'Global'
   const touchesClients = touches(lead)
+  const site = agencySite(lead)
 
   return (
     <article className={`rounded-xl border bg-white shadow-sm transition-all hover:shadow-md ${
@@ -331,10 +346,39 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
           <span className="font-mono text-stone-400">{formatDate(lead.created_at)}</span>
         </div>
 
-        {/* Agency */}
-        <h3 className={`text-base font-semibold leading-snug mb-1 ${name ? 'text-stone-900' : 'text-stone-400 italic font-medium'}`}>
-          {name ?? 'No single agency named'}
-        </h3>
+        {/* Agency + website */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
+          <h3 className={`text-base font-semibold leading-snug ${name ? 'text-stone-900' : 'text-stone-400 italic font-medium'}`}>
+            {name ?? 'No single agency named'}
+          </h3>
+          {name && (site ? (
+            <a
+              href={site}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-mono text-sky-700 hover:text-sky-900 hover:underline"
+              title="Agency website"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5-2.5 3.75-5.5 3.75-9S14.5 5.5 12 3m0 18c-2.5-2.5-3.75-5.5-3.75-9S9.5 5.5 12 3M3.5 9h17M3.5 15h17" />
+              </svg>
+              {domainOf(site)}
+            </a>
+          ) : (
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(searchName(name))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 hover:underline"
+              title="No website on file — search the web"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+              </svg>
+              Find website
+            </a>
+          ))}
+        </div>
 
         {/* Match */}
         {lead.agent ? (

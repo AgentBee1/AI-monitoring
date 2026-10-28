@@ -9,6 +9,7 @@ export interface MatchedAgent {
   country: string | null
   risk_tier: string | null
   risk_tier_color: string | null
+  website: string | null
 }
 
 export interface Lead {
@@ -18,6 +19,7 @@ export interface Lead {
   candidate_agent_name_raw: string | null
   match_confidence: 'confirmed' | 'likely' | 'unmatched'
   summary: string
+  agency_website: string | null // found by the scan for named agencies not in our agents table
   source_url: string
   status: LeadStatus
   created_at: string
@@ -78,8 +80,8 @@ export async function getLeads(): Promise<Lead[]> {
     .from('ai_sector_leads')
     .select(`
       id, category, jurisdiction, candidate_agent_name_raw, match_confidence,
-      summary, source_url, status, created_at,
-      agent:candidate_agent_id ( id, agency_name, country, risk_tier, risk_tier_color )
+      summary, agency_website, source_url, status, created_at,
+      agent:candidate_agent_id ( id, agency_name, country, risk_tier, risk_tier_color, website )
     `)
     .neq('status', 'dismissed')
     .order('created_at', { ascending: false })
