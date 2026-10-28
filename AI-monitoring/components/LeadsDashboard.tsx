@@ -148,7 +148,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <AppHeader active="leads" subtitle="Sector scan · Weekly, Mon 6am" />
+      <AppHeader active="leads" subtitle="Sector scan · Weekly, Fri 6am" />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Status tabs */}
@@ -228,7 +228,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
             <p className="text-4xl mb-4">🐝</p>
             <p className="text-stone-500 text-sm">
               {inStatus.length === 0
-                ? status === 'new' ? 'Nothing to review. The next scan runs Monday 6am.' : 'Nothing here yet.'
+                ? status === 'new' ? 'Nothing to review. The next scan runs Friday 6am.' : 'Nothing here yet.'
                 : 'No leads match these filters.'}
             </p>
           </div>
