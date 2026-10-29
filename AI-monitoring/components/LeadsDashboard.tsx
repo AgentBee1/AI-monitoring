@@ -20,8 +20,13 @@ const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c])) as Rec
 const CATEGORY_ORDER = Object.fromEntries(CATEGORIES.map((c, i) => [c.id, i])) as Record<LeadCategory, number>
 
 const JURISDICTIONS: Record<string, string> = {
-  AU: 'Australia', CA: 'Canada', UK: 'United Kingdom', US: 'United States',
-  CN: 'China', VN: 'Vietnam', BD: 'Bangladesh', NP: 'Nepal',
+  AU: 'Australia', CA: 'Canada', UK: 'United Kingdom', GB: 'United Kingdom', US: 'United States',
+  NZ: 'New Zealand', IE: 'Ireland', CN: 'China', HK: 'Hong Kong', TW: 'Taiwan', JP: 'Japan',
+  KR: 'South Korea', VN: 'Vietnam', TH: 'Thailand', MY: 'Malaysia', SG: 'Singapore', ID: 'Indonesia',
+  PH: 'Philippines', IN: 'India', PK: 'Pakistan', BD: 'Bangladesh', NP: 'Nepal', LK: 'Sri Lanka',
+  AE: 'UAE', SA: 'Saudi Arabia', NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa',
+  EG: 'Egypt', MA: 'Morocco', ES: 'Spain', IT: 'Italy', FR: 'France', DE: 'Germany', NL: 'Netherlands',
+  MX: 'Mexico', BR: 'Brazil', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru',
 }
 
 const STATUS_TABS: { id: Exclude<LeadStatus, 'dismissed'>; label: string }[] = [
@@ -45,11 +50,14 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
 }
 
-// Agency website: our database first, then what the scan found. Stored values may lack a scheme.
-function agencySite(lead: Lead): string | null {
-  const raw = (lead.agent?.website || lead.agency_website || '').trim()
+// Agency website: our database first (trusted), then what the scan found by web search (unconfirmed).
+// Stored values may lack a scheme.
+function agencySite(lead: Lead): { url: string; fromSearch: boolean } | null {
+  const db = (lead.agent?.website || '').trim()
+  const found = (lead.agency_website || '').trim()
+  const raw = db || found
   if (!raw) return null
-  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  return { url: /^https?:\/\//i.test(raw) ? raw : `https://${raw}`, fromSearch: !db }
 }
 
 // Name to search the web for: the Latin-script part of e.g. "中佑教育 (Zhongyou Education)".
@@ -108,7 +116,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
         || (l.candidate_agent_name_raw ?? '').toLowerCase().includes(q)
         || (l.agent?.agency_name ?? '').toLowerCase().includes(q)
         || domainOf(l.source_url).includes(q)
-        || (agencySite(l) ?? '').toLowerCase().includes(q))
+        || (agencySite(l)?.url ?? '').toLowerCase().includes(q))
       .sort(sortLeads)
   }, [inStatus, category, matchedOnly, query])
 
@@ -352,18 +360,28 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
             {name ?? 'No single agency named'}
           </h3>
           {name && (site ? (
-            <a
-              href={site}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-mono text-sky-700 hover:text-sky-900 hover:underline"
-              title="Agency website"
-            >
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5-2.5 3.75-5.5 3.75-9S14.5 5.5 12 3m0 18c-2.5-2.5-3.75-5.5-3.75-9S9.5 5.5 12 3M3.5 9h17M3.5 15h17" />
-              </svg>
-              {domainOf(site)}
-            </a>
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              <a
+                href={site.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-mono text-sky-700 hover:text-sky-900 hover:underline"
+                title={site.fromSearch ? 'Found by web search — not confirmed' : 'Website from our agent database'}
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5-2.5 3.75-5.5 3.75-9S14.5 5.5 12 3m0 18c-2.5-2.5-3.75-5.5-3.75-9S9.5 5.5 12 3M3.5 9h17M3.5 15h17" />
+                </svg>
+                {domainOf(site.url)}
+              </a>
+              {site.fromSearch && (
+                <span
+                  className="text-[11px] leading-none px-1.5 py-1 rounded bg-stone-100 text-stone-500 border border-stone-200"
+                  title="The scan matched this site to the agency name by web search. It isn't from the source article — check it's the same business before relying on it."
+                >
+                  found by search — check before use
+                </span>
+              )}
+            </span>
           ) : (
             <a
               href={`https://www.google.com/search?q=${encodeURIComponent(searchName(name))}`}
