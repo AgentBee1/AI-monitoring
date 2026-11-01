@@ -60,10 +60,29 @@ function agencySite(lead: Lead): { url: string; fromSearch: boolean } | null {
   return { url: /^https?:\/\//i.test(raw) ? raw : `https://${raw}`, fromSearch: !db }
 }
 
-// Name to search the web for: the Latin-script part of e.g. "中佑教育 (Zhongyou Education)".
-function searchName(name: string) {
-  const latin = name.match(/\(([^()]*[A-Za-z][^()]*)\)/)
-  return /[A-Za-z]/.test(name.replace(/\([^()]*\)/g, '')) ? name : (latin?.[1] ?? name)
+// Split a name like "Shanghai Foo Education Co., Ltd. (上海…有限公司)" or "中佑教育 (Zhongyou Education)"
+// into its Latin-script and CJK parts, so the web search isn't swamped by Chinese-language results.
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/
+function nameParts(name: string): { latin: string | null; native: string | null } {
+  const chunks = [name.replace(/[(（][^()（）]*[)）]/g, ' '), ...Array.from(name.matchAll(/[(（]([^()（）]*)[)）]/g), m => m[1])]
+    .map(c => c.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+  const latin = chunks.find(c => /[A-Za-z]/.test(c) && !CJK.test(c)) ?? null
+  const native = chunks.find(c => CJK.test(c)) ?? null
+  return { latin, native }
+}
+
+// English-language web search for the Latin-script name (falls back to the full name).
+function searchUrl(name: string) {
+  const { latin } = nameParts(name)
+  const q = latin ? `"${latin}" official website` : name
+  return `https://www.google.com/search?hl=en&gl=au&q=${encodeURIComponent(q)}`
+}
+
+// Native-script search (e.g. Chinese company name) — many local agencies only have native-language sites.
+function nativeSearchUrl(name: string) {
+  const { native } = nameParts(name)
+  return native ? `https://www.google.com/search?hl=en&q=${encodeURIComponent(`"${native}" 官网`)}` : null
 }
 
 // Leads that touch a client's agent (authorised or Risk Radar) are the most important, then matched agents,
@@ -383,8 +402,9 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
               )}
             </span>
           ) : (
+            <span className="inline-flex flex-wrap items-center gap-2">
             <a
-              href={`https://www.google.com/search?q=${encodeURIComponent(searchName(name))}`}
+              href={searchUrl(name)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 hover:underline"
@@ -395,6 +415,18 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
               </svg>
               Find website
             </a>
+            {nativeSearchUrl(name) && (
+              <a
+                href={nativeSearchUrl(name)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-stone-400 hover:text-stone-700 hover:underline"
+                title="Search the native-script name — use if the English search finds nothing"
+              >
+                (native name)
+              </a>
+            )}
+            </span>
           ))}
         </div>
 
