@@ -46,8 +46,16 @@ function domainOf(url: string) {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
 }
 
+const TZ = 'Australia/Sydney'
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: TZ })
+}
+
+function formatScanTime(iso: string) {
+  return new Date(iso).toLocaleString('en-AU', {
+    weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: TZ,
+  })
 }
 
 // Agency website: our database first (trusted), then what the scan found by web search (unconfirmed).
@@ -118,6 +126,15 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
   }, [leads])
 
   const inStatus = useMemo(() => leads.filter(l => l.status === status), [leads, status])
+
+  const latestScan = useMemo(() => {
+    if (initialLeads.length === 0) return null
+    const latest = initialLeads.reduce((m, l) => (l.created_at > m ? l.created_at : m), initialLeads[0].created_at)
+    const cutoff = new Date(new Date(latest).getTime() - 30 * 60 * 1000).toISOString()
+    const ids = new Set(initialLeads.filter(l => l.created_at >= cutoff).map(l => l.id))
+    return { at: latest, ids }
+  }, [initialLeads])
+  const latestStillToReview = latestScan ? leads.filter(l => latestScan.ids.has(l.id) && l.status === 'new').length : 0
 
   const categoryCounts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -192,6 +209,16 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
       <AppHeader active="leads" subtitle="Sector scan · Weekly, Fri 6am" />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {latestScan && (
+          <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm text-sky-900">
+            <span className="font-semibold">Latest scan: {formatScanTime(latestScan.at)}</span>
+            <span className="text-sky-700">
+              {latestScan.ids.size} new lead{latestScan.ids.size === 1 ? '' : 's'}
+              {' · '}{latestStillToReview} still to review
+            </span>
+          </div>
+        )}
+
         {/* Status tabs */}
         <div className="flex flex-wrap items-center gap-2 mb-5">
           {STATUS_TABS.map(t => (
@@ -279,7 +306,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
               <section>
                 <SectionHeading label="Your clients' agents" count={pinned.length} dot="bg-amber-500" />
                 <div className="space-y-3">
-                  {pinned.map(l => <LeadCard key={l.id} lead={l} onMove={move} />)}
+                  {pinned.map(l => <LeadCard key={l.id} lead={l} onMove={move} isNew={!!latestScan?.ids.has(l.id)} />)}
                 </div>
               </section>
             )}
@@ -290,7 +317,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
                 <section key={g.cat.id}>
                   {showGroups && <SectionHeading label={g.cat.label} count={items.length} dot={g.cat.dot} />}
                   <div className="space-y-3">
-                    {items.map(l => <LeadCard key={l.id} lead={l} onMove={move} />)}
+                    {items.map(l => <LeadCard key={l.id} lead={l} onMove={move} isNew={!!latestScan?.ids.has(l.id)} />)}
                   </div>
                 </section>
               )
@@ -351,7 +378,7 @@ function SectionHeading({ label, count, dot }: { label: string; count: number; d
   )
 }
 
-function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatus) => void }) {
+function LeadCard({ lead, onMove, isNew }: { lead: Lead; onMove: (l: Lead, s: LeadStatus) => void; isNew: boolean }) {
   const cat = CATEGORY_BY_ID[lead.category]
   const name = lead.candidate_agent_name_raw
   const where = lead.jurisdiction ? (JURISDICTIONS[lead.jurisdiction] ?? lead.jurisdiction) : 'Global'
@@ -371,6 +398,11 @@ function LeadCard({ lead, onMove }: { lead: Lead; onMove: (l: Lead, s: LeadStatu
           <span className="font-mono text-stone-400">{where}</span>
           <span className="text-stone-300">·</span>
           <span className="font-mono text-stone-400">{formatDate(lead.created_at)}</span>
+          {isNew && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-sky-600 text-white text-[11px] font-semibold uppercase tracking-wide">
+              New
+            </span>
+          )}
         </div>
 
         {/* Agency + website */}
