@@ -3,6 +3,8 @@ import MonitoringDashboard from '@/components/MonitoringDashboard'
 
 // Always read live data (otherwise Next can serve a build-time snapshot of the queue).
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
 async function getCandidates() {
   const { data, error } = await supabase
