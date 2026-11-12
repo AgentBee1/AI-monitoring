@@ -49,7 +49,9 @@ function domainOf(url: string) {
 const TZ = 'Australia/Sydney'
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: TZ })
+  const d = new Date(iso)
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }), timeZone: TZ })
 }
 
 function formatScanTime(iso: string) {
@@ -104,6 +106,20 @@ function sortLeads(a: Lead, b: Lead) {
     || b.created_at.localeCompare(a.created_at)
 }
 
+type SortMode = 'priority' | 'newest' | 'oldest'
+
+const SORT_OPTIONS: { id: SortMode; label: string }[] = [
+  { id: 'priority', label: 'Priority' },
+  { id: 'newest', label: 'Newest first' },
+  { id: 'oldest', label: 'Oldest first' },
+]
+
+const COMPARATORS: Record<SortMode, (a: Lead, b: Lead) => number> = {
+  priority: sortLeads,
+  newest: (a, b) => b.created_at.localeCompare(a.created_at),
+  oldest: (a, b) => a.created_at.localeCompare(b.created_at),
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
@@ -116,6 +132,7 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
   const [category, setCategory] = useState<LeadCategory | 'all'>('all')
   const [matchedOnly, setMatchedOnly] = useState(false)
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SortMode>('priority')
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -153,8 +170,8 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
         || (l.agent?.agency_name ?? '').toLowerCase().includes(q)
         || domainOf(l.source_url).includes(q)
         || (agencySite(l)?.url ?? '').toLowerCase().includes(q))
-      .sort(sortLeads)
-  }, [inStatus, category, matchedOnly, query])
+      .sort(COMPARATORS[sort])
+  }, [inStatus, category, matchedOnly, query, sort])
 
   const clientHits = inStatus.filter(touches).length
   const matched = inStatus.filter(l => !!l.agent).length
@@ -195,10 +212,11 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
     }
   }
 
-  const showGroups = category === 'all'
-  const groups = showGroups
-    ? CATEGORIES.map(c => ({ cat: c, items: visible.filter(l => l.category === c.id) })).filter(g => g.items.length)
-    : [{ cat: CATEGORY_BY_ID[category as LeadCategory], items: visible }]
+  // Priority view groups by category; date sorts show one flat chronological list.
+  const showGroups = category === 'all' && sort === 'priority'
+  const groups: { key: string; cat: (typeof CATEGORIES)[number] | null; items: Lead[] }[] = showGroups
+    ? CATEGORIES.map(c => ({ key: c.id, cat: c, items: visible.filter(l => l.category === c.id) })).filter(g => g.items.length)
+    : [{ key: 'flat', cat: null, items: visible }]
 
   // When grouping, keep client-linked leads in a pinned section on top so they're never missed.
   const pinned = showGroups ? visible.filter(touches) : []
@@ -278,6 +296,16 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
                 className="w-full bg-stone-50 border border-stone-200 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-stone-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
               />
             </div>
+            <label className="inline-flex items-center gap-2 text-sm text-stone-600 select-none px-1">
+              Sort
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value as SortMode)}
+                className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-2 text-sm text-stone-700 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              >
+                {SORT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </label>
             <label className="inline-flex items-center gap-2 text-sm text-stone-600 select-none cursor-pointer px-1">
               <input
                 type="checkbox"
@@ -314,8 +342,8 @@ export default function LeadsDashboard({ initialLeads }: { initialLeads: Lead[] 
               const items = g.items.filter(l => !pinnedIds.has(l.id))
               if (items.length === 0) return null
               return (
-                <section key={g.cat.id}>
-                  {showGroups && <SectionHeading label={g.cat.label} count={items.length} dot={g.cat.dot} />}
+                <section key={g.key}>
+                  {g.cat && <SectionHeading label={g.cat.label} count={items.length} dot={g.cat.dot} />}
                   <div className="space-y-3">
                     {items.map(l => <LeadCard key={l.id} lead={l} onMove={move} isNew={!!latestScan?.ids.has(l.id)} />)}
                   </div>
